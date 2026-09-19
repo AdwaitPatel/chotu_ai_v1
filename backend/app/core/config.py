@@ -47,6 +47,17 @@ class Settings(BaseSettings):
             return False
         return bool(value) if not isinstance(value, str) else value.lower() in {"1", "true", "yes", "on"}
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def use_asyncpg_database_url(cls, value: object) -> str:
+        """Render provides postgres:// URLs; SQLAlchemy async needs asyncpg."""
+        url = str(value)
+        if url.startswith("postgres://"):
+            return "postgresql+asyncpg://" + url.removeprefix("postgres://")
+        if url.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + url.removeprefix("postgresql://")
+        return url
+
 
 @lru_cache
 def get_settings() -> Settings:
