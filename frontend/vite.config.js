@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+    '/api':"https://chotu-ai.onrender.com",
       '/api': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
     },
