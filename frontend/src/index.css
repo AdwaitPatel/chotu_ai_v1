@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #000000;
+    color: #ededed;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Vercel-style subtle scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222222;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333333;
+}
+
+/* Vercel Card Class */
+.vercel-card {
+  background-color: #000000;
+  border: 1px solid #1f1f1f;
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.vercel-card:hover {
+  border-color: #2e2e2e;
+}
+
+/* Vercel Button styles */
+.vercel-btn-primary {
+  background-color: #ffffff;
+  color: #000000;
+  font-weight: 500;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+
+.vercel-btn-primary:hover {
+  background-color: #eaeaea;
+}
+
+.vercel-btn-secondary {
+  background-color: transparent;
+  color: #ededed;
+  border: 1px solid #2e2e2e;
+  font-weight: 500;
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+
+.vercel-btn-secondary:hover {
+  background-color: #171717;
+  border-color: #444444;
+}

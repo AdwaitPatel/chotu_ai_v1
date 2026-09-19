@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" fill="none">
+  <rect width="44" height="44" y="6" rx="10" fill="#00BAF2" />
+  <path d="M14 18H30V26H22V38H14V18Z" fill="#FFFFFF"/>
+  <path d="M22 26H30L26 38H18L22 26Z" fill="#002E6E" fill-opacity="0.9"/>
+  <circle cx="34" cy="16" r="4" fill="#10B981"/>
+  <text x="54" y="32" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="#FFFFFF" letter-spacing="-0.5">Paytm</text>
+  <text x="130" y="32" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="22" fill="#00BAF2" letter-spacing="-0.5">GrowthOS</text>
+  <rect x="54" y="37" width="62" height="12" rx="3" fill="#1E293B"/>
+  <text x="58" y="46" font-family="Plus Jakarta Sans, sans-serif" font-weight="600" font-size="8" fill="#94A3B8" letter-spacing="0.5">AI MERCHANT COPILOT</text>
+  <rect x="122" y="37" width="54" height="12" rx="3" fill="#064E3B"/>
+  <text x="126" y="46" font-family="Plus Jakarta Sans, sans-serif" font-weight="700" font-size="8" fill="#34D399" letter-spacing="0.5">SOUNDBOX 4G</text>
+</svg>

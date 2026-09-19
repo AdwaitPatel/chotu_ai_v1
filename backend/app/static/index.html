@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Merchant Growth AI — Voice Test</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui;background:#101827;color:#eef2ff}body{max-width:720px;margin:48px auto;padding:0 20px}main{background:#182235;border:1px solid #2a3853;border-radius:16px;padding:28px}h1{margin-top:0}p{color:#bbc7da;line-height:1.5}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}button,input{border-radius:9px;border:1px solid #425371;padding:11px 14px;font:inherit}button{background:#2563eb;color:white;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}input{background:#0d1524;color:white;width:70px}#status{font-size:.9rem;color:#93c5fd}#live{color:#fbbf24;min-height:25px}#events{white-space:pre-wrap;background:#0b1220;border-radius:10px;padding:15px;min-height:170px;overflow-wrap:anywhere}.hint{font-size:.85rem}
+  </style>
+</head>
+<body><main>
+  <h1>Merchant voice-stream test</h1>
+  <p>Record Hindi, Hinglish, or English. Sarvam transcribes your audio and speaks the assistant's response. Click Stop to send (maximum 25 seconds).</p>
+  <audio id="playback" controls></audio>
+  <button id="testSpeech">Test Sarvam voice</button>
+  <div class="controls"><label>Customer <input id="customerId" type="number" min="1" value="1"></label><button id="listen">Start listening</button><button id="demo">Send demo phrase</button></div>
+  <div id="status">Connecting…</div><p id="live">Waiting for speech…</p><pre id="events"></pre>
+  <p class="hint">Run <code>docker compose up --build</code>, seed data, then open <code>http://localhost:8000</code>. Microphone access requires localhost or HTTPS.</p>
+</main><script>
+const status=document.querySelector('#status'),live=document.querySelector('#live'),events=document.querySelector('#events'),listen=document.querySelector('#listen'),demo=document.querySelector('#demo'),customerId=document.querySelector('#customerId');
+let socket,phraseIndex=0;const phrases=['2 kilo chawal add karo','Cart dikhao','Isko 5 kilo kar do'];
+const log=value=>events.textContent=`${new Date().toLocaleTimeString()}  ${value}\n${events.textContent}`;
+function send(text,isFinal){if(!socket||socket.readyState!==WebSocket.OPEN)return log('WebSocket is not connected.');if(isFinal)log(`Sent: ${text}`);socket.send(JSON.stringify({type:'transcript',customer_id:Number(customerId.value)||1,text,is_final:isFinal}));}
+function connect(){if(!location.host){status.textContent='Open this page through http://127.0.0.1:8000, not as a file.';demo.disabled=true;listen.disabled=true;return}const protocol=location.protocol==='https:'?'wss':'ws';socket=new WebSocket(`${protocol}://${location.host}/api/voice/stream`);socket.onopen=()=>{status.textContent='Live stream connected';demo.disabled=false};socket.onclose=()=>{status.textContent='Disconnected — retrying…';demo.disabled=true;setTimeout(connect,1500)};socket.onerror=()=>status.textContent='WebSocket error';socket.onmessage=({data})=>{const event=JSON.parse(data);if(event.type==='interim')live.textContent=`Hearing: ${event.text}`;if(event.type==='reply'){live.textContent=`You said: ${event.transcript}`;log(`Reply [${event.intent}]: ${event.speech}`)}if(event.type==='error')log(`Error: ${event.message}`)}}
+demo.onclick=()=>{const text=phrases[phraseIndex++%phrases.length];live.textContent=`Demo: ${text}`;send(text,true)};
+let recorder,stopTimer,audioUrl;
+const playback=document.querySelector('#playback');
+async function speechRequest(path,body,type){
+ const response=await fetch(`/api/voice/${path}`,{method:'POST',headers:{'Content-Type':type},body});
+ if(!response.ok){const error=await response.json();throw new Error(error.error?.message||JSON.stringify(error.detail)||'Speech request failed');}
+ return response;
+}
+async function speak(text){
+ try{const response=await speechRequest('speak',JSON.stringify({text,language:'hi-IN'}),'application/json');
+ if(audioUrl)URL.revokeObjectURL(audioUrl);audioUrl=URL.createObjectURL(await response.blob());playback.src=audioUrl;
+ try{await playback.play()}catch{log('Press play to hear the reply.');}
+ }catch(error){log(`Speech error: ${error.message}`)}
+}
+listen.onclick=async()=>{
+ if(recorder?.state==='recording'){recorder.stop();return;}
+ let stream;
+ try{
+ playback.pause();stream=await navigator.mediaDevices.getUserMedia({audio:true});
+ const mime=['audio/webm','audio/mp4','audio/ogg'].find(value=>MediaRecorder.isTypeSupported(value));
+ if(!mime)throw new Error('This browser cannot record a supported audio format.');
+ recorder=new MediaRecorder(stream,{mimeType:mime});const chunks=[];
+ recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data)};
+ recorder.onstop=async()=>{
+ clearTimeout(stopTimer);stream.getTracks().forEach(track=>track.stop());listen.disabled=true;listen.textContent='Transcribing…';
+ try{const response=await speechRequest('transcribe',new Blob(chunks,{type:mime}),mime);const {text}=await response.json();live.textContent=`You said: ${text}`;send(text,true);}
+ catch(error){log(error.message)}finally{listen.disabled=false;listen.textContent='Start listening';}
+ };
+ recorder.start();listen.textContent='Stop and send';stopTimer=setTimeout(()=>{if(recorder.state==='recording')recorder.stop()},25000);
+ }catch(error){stream?.getTracks().forEach(track=>track.stop());log(error.message);}
+};
+document.querySelector('#testSpeech').onclick=()=>speak('Namaste. Aapka swagat hai.');
+const connectSocket=connect;
+connect=()=>{connectSocket();if(socket)socket.addEventListener('message',({data})=>{const event=JSON.parse(data);if(event.type==='reply'&&event.speech)speak(event.speech)});};
+demo.disabled=true;connect();
+</script></body></html>
