@@ -15,10 +15,10 @@
   <div class="controls"><button id="listen">Start listening</button><button id="demo">Send demo phrase</button></div>
   <div id="status">Connecting…</div><p id="live">Waiting for speech…</p><pre id="events"></pre>
   </main><script>
-const status=document.querySelector('#status'),live=document.querySelector('#live'),events=document.querySelector('#events'),listen=document.querySelector('#listen'),demo=document.querySelector('#demo'),customerId=document.querySelector('#customerId');
+const status=document.querySelector('#status'),live=document.querySelector('#live'),events=document.querySelector('#events'),listen=document.querySelector('#listen'),demo=document.querySelector('#demo');
 let socket,phraseIndex=0;const phrases=['2 kilo chawal add karo','Cart dikhao','Isko 5 kilo kar do'];
 const log=value=>events.textContent=`${new Date().toLocaleTimeString()}  ${value}\n${events.textContent}`;
-function send(text,isFinal){if(!socket||socket.readyState!==WebSocket.OPEN)return log('WebSocket is not connected.');if(isFinal)log(`Sent: ${text}`);socket.send(JSON.stringify({type:'transcript',customer_id:Number(customerId.value)||1,text,is_final:isFinal}));}
+function send(text,isFinal){if(!socket||socket.readyState!==WebSocket.OPEN)return log('WebSocket is not connected.');if(isFinal)log(`Sent: ${text}`);socket.send(JSON.stringify({type:'transcript',customer_id:1,text,is_final:isFinal}));}
 function connect(){if(!location.host){status.textContent='Open this page through http://127.0.0.1:8000, not as a file.';demo.disabled=true;listen.disabled=true;return}const protocol=location.protocol==='https:'?'wss':'ws';socket=new WebSocket(`${protocol}://${location.host}/api/voice/stream`);socket.onopen=()=>{status.textContent='Live stream connected';demo.disabled=false};socket.onclose=()=>{status.textContent='Disconnected — retrying…';demo.disabled=true;setTimeout(connect,1500)};socket.onerror=()=>status.textContent='WebSocket error';socket.onmessage=({data})=>{const event=JSON.parse(data);if(event.type==='interim')live.textContent=`Hearing: ${event.text}`;if(event.type==='reply'){live.textContent=`You said: ${event.transcript}`;log(`Reply [${event.intent}]: ${event.speech}`)}if(event.type==='error')log(`Error: ${event.message}`)}}
 demo.onclick=()=>{const text=phrases[phraseIndex++%phrases.length];live.textContent=`Demo: ${text}`;send(text,true)};
 let recorder,stopTimer,audioUrl;
@@ -51,7 +51,6 @@ listen.onclick=async()=>{
  recorder.start();listen.textContent='Stop and send';stopTimer=setTimeout(()=>{if(recorder.state==='recording')recorder.stop()},25000);
  }catch(error){stream?.getTracks().forEach(track=>track.stop());log(error.message);}
 };
-document.querySelector('#testSpeech').onclick=()=>speak('Namaste. Aapka swagat hai.');
 const connectSocket=connect;
 connect=()=>{connectSocket();if(socket)socket.addEventListener('message',({data})=>{const event=JSON.parse(data);if(event.type==='reply'&&event.speech)speak(event.speech)});};
 demo.disabled=true;connect();
