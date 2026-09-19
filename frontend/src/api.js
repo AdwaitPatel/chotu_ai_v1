@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+// Render is the shared backend for deployed and local frontend builds. Set
+// VITE_API_BASE_URL to override it (for example, http://localhost:8000).
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://chotu-ai.onrender.com').replace(/\/$/, '');
 
 export async function api(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {

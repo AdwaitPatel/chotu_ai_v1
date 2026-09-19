@@ -31,7 +31,7 @@ app.add_exception_handler(IntegrityError, integrity_error_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten in production
+    allow_origins=["*"], 
     allow_methods=["*"],
     allow_headers=["*"],
 )
