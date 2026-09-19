@@ -1,6 +1,7 @@
-// Render is the shared backend for deployed and local frontend builds. Set
-// VITE_API_BASE_URL to override it (for example, http://localhost:8000).
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://chotu-ai.onrender.com').replace(/\/$/, '');
+// Use a same-origin `/api` request by default. Vite proxies this locally and
+// vercel.json proxies it to Render in production, so browsers never need CORS.
+// Set VITE_API_BASE_URL only when a direct API connection is intentionally needed.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 export async function api(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
