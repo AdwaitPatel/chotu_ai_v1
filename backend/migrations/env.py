@@ -1,11 +1,18 @@
 """Alembic metadata bridge for GrowthOS's async database engine."""
 import asyncio
 import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+# The `alembic` console script is installed under /usr/local/bin, so it does
+# not reliably include the application working directory on sys.path in Docker.
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 from app.core.database import Base
 import app.domain.models  # registers model metadata
