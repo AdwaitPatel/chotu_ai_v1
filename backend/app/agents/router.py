@@ -40,6 +40,10 @@ class AgentRouter:
         session_state = await get_session_memory(customer_id).get()
         if intent.intent in {IntentType.DAILY_SALES, IntentType.WEEKLY_SALES, IntentType.MONTHLY_SALES, IntentType.TOP_PRODUCTS, IntentType.GROWTH_INSIGHTS}:
             merchant = await current_merchant(self.session)
+            if intent.intent == IntentType.GROWTH_INSIGHTS:
+                plan = await AnalyticsService(self.session, merchant.id).growth_plan()
+                speech = "Sales badhane ke liye yeh kaam kijiye: " + " ".join(plan['growth_actions'])
+                return AgentResponse(speech, plan, intent=intent.intent.value)
             period = {IntentType.DAILY_SALES: 'day', IntentType.MONTHLY_SALES: 'month'}.get(intent.intent, 'week')
             report = await AnalyticsService(self.session, merchant.id).report(period)
             return AgentResponse(report['summary'] + ' ' + ' '.join(report['insights'] + report['recommendations']), report, intent=intent.intent.value)

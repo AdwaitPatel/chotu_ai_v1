@@ -9,6 +9,7 @@ from app.agents.payment_agent import PaymentAgent
 from app.intent.rule_based_parser import parse
 from app.intent.schemas import IntentType
 from app.services.analytics_service import period_start
+from app.services.analytics_service import AnalyticsService
 from app.services.payment_service import PaytmVerifier
 
 
@@ -22,6 +23,15 @@ class ReportParsingTests(unittest.TestCase):
     def test_calendar_week_ist(self):
         start = period_start('week', datetime(2026, 9, 20, 19, 0, tzinfo=timezone.utc))
         self.assertEqual(start.isoformat(), '2026-09-21T00:00:00+05:30')
+
+    def test_growth_plan_has_actionable_sales_suggestions(self):
+        actions = AnalyticsService._growth_actions({
+            'top_products': [{'name': 'sugar'}],
+            'outstanding_udhar': '25',
+        })
+        self.assertTrue(any('sugar' in action for action in actions))
+        self.assertTrue(any('average bill' in action for action in actions))
+        self.assertTrue(any('udhar' in action for action in actions))
 
 
 class PaymentConversationTests(unittest.IsolatedAsyncioTestCase):

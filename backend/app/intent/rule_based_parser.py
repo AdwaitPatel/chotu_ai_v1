@@ -38,7 +38,7 @@ PRODUCT_ALIASES = {
 # Normalize the supported vocabulary so either transcript form works offline.
 DEVANAGARI_REPLACEMENTS = {
     "बिजनेस": "business", "बिज़नेस": "business", "बिज़नेस": "business", "एनालिसिस": "analysis", "एनालाइज": "analysis", "विश्लेषण": "analysis",
-    "सेल्स": "sales", "बिक्री": "sales", "वीक": "week", "हफ्ते": "week", "हफ़्ते": "week", "सप्ताह": "week",
+    "सेल्स": "sales", "शेड्स": "sales", "बिक्री": "sales", "इनक्रीस": "increase", "बढ़ाऊँ": "badhao", "बढ़ाना": "badha", "बढ़ाना": "badha", "वीक": "week", "हफ्ते": "week", "हफ़्ते": "week", "सप्ताह": "week",
     "आज": "today", "महीने": "month", "मंथ": "month",
     "डाल दो": "daal do", "कर दो": "kar do",
     "चावल": "chawal", "आटा": "aata", "मैदा": "maida", "चीनी": "chini", "तेल": "tel", "फ्लावर": "flour", "गेहूं": "wheat", "ऐड": "add", "प्राइ": "price", "प्राइस": "price", "रुपये": "price",
@@ -79,6 +79,7 @@ INTENT_PATTERNS: list[tuple[IntentType, list[str]]] = [
     (IntentType.TOP_PRODUCTS, [r"\b(sabse zyada|top|best.?selling)\b"]),
     (IntentType.WEEKLY_SALES, [r"\b(hafte|week|weekly)\b.*\bsales\b|\bsales\b.*\b(hafte|week)\b"]),
     (IntentType.MONTHLY_SALES, [r"\b(mahine|month|monthly)\b.*\bsales\b|\bsales\b.*\b(mahine|month)\b"]),
+    (IntentType.GROWTH_INSIGHTS, [r"\bsales\b.*\b(badha|badhao|increase|grow)\b", r"\b(badha|badhao|increase|grow)\b.*\bsales\b"]),
     (IntentType.DAILY_SALES, [r"\b(aaj|today|daily)\b.*\bsales\b|\bsales\b.*\b(aaj|today)\b"]),
     (IntentType.GROWTH_INSIGHTS, [r"\b(business|sales)\b.*\b(analysis|analyse|analyze|insights)\b", r"\b(analysis|analyse|analyze)\b.*\b(business|sales)\b", r"\bbusiness\b"]),
     (IntentType.GROWTH_INSIGHTS, [r"\brevenue\b.*\b(badha|grow|increase)\b", r"\bgrowth\b"]),

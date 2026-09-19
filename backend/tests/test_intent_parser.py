@@ -92,6 +92,16 @@ def test_hindi_business_growth_idea_is_routed_to_insights():
     assert parse("अब बिज़नेस ग्रो करने के लिए कुछ आइडिया दो।").intent == IntentType.GROWTH_INSIGHTS
 
 
+@pytest.mark.parametrize("text", [
+    "सेल्स इनक्रीस कैसे करें?",
+    "सेल्स को कैसे बढ़ाऊँ?",
+    "सर, अगर मुझे सेल्स को इनक्रीस करना हो तो क्या कर सकते हैं?",
+    "शेड्स को बढ़ाना और फिर क्या करें?",
+])
+def test_hindi_sales_growth_questions_are_routed_to_insights(text):
+    assert parse(text).intent == IntentType.GROWTH_INSIGHTS
+
+
 @pytest.mark.parametrize(
     "text,expected_intent",
     [

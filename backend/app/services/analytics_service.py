@@ -55,3 +55,33 @@ class AnalyticsService:
                 'order_count': count, 'sales_total': str(revenue), 'gst_total': str(gst),
                 'paid_bills_total': str(paid), 'average_bill': str(average), 'outstanding_udhar': str(outstanding),
                 'top_products': [{'name': r.name, 'quantity': str(r.quantity), 'sales_excluding_gst': str(r.revenue)} for r in top]}
+
+    async def growth_plan(self) -> dict:
+        """Actionable, data-aware sales-growth plan for a merchant voice query."""
+        report = await self.report('week')
+        actions = self._growth_actions(report)
+        return {**report, 'growth_actions': actions}
+
+    @staticmethod
+    def _growth_actions(report: dict) -> list[str]:
+        actions: list[str] = []
+        top_products = report.get('top_products', [])
+        if top_products:
+            top_name = top_products[0]['name']
+            actions.append(
+                f"{top_name} aapka top seller hai; ise counter ke paas rakhiye aur iske saath related item ka combo offer dijiye."
+            )
+        else:
+            actions.append(
+                "Pehle 5 fast-moving daily-use products ko entrance ya counter ke paas clearly display kijiye."
+            )
+        actions.extend([
+            "Har bill par ek low-price add-on suggest kijiye, jaise snack, salt ya small daily-use pack; isse average bill badhega.",
+            "WhatsApp ya nearby customers ko weekly offer bhejiye: combo pack, fixed discount ya minimum bill par free delivery.",
+            "Repeat customers ke liye simple loyalty offer rakhiye: 5 purchases ke baad ek small discount ya free item.",
+        ])
+        if report.get('top_products'):
+            actions.append("Top-selling items kabhi out of stock na hone dijiye; sales lost hone se bachengi.")
+        if Decimal(str(report.get('outstanding_udhar', '0'))) > 0:
+            actions.append("Purane udhar ka polite follow-up kijiye, taki cash flow se naya fast-moving stock mangwa saken.")
+        return actions
