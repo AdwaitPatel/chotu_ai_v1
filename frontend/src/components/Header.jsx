@@ -20,6 +20,17 @@ export default function Header({
 
       {/* Right: Soundbox Status & Quick Settlement Trigger */}
       <div className="flex items-center gap-2.5">
+
+        <a
+          href="https://chotu-ai.onrender.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2.5 py-1 rounded-md bg-[#0070f3] hover:bg-[#0066dd] border border-[#1680f5] text-white text-xs font-medium transition-all flex items-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-[14px]">mic</span>
+          <span>Voice Agent</span>
+          <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+        </a>
         
         {/* Quick Settle Button */}
         <button
