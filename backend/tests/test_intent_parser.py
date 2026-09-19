@@ -63,6 +63,24 @@ def test_rupee_price_creates_an_inventory_restock_intent(text):
     assert result.items[0].unit_price == 20
 
 
+@pytest.mark.parametrize("text", [
+    "इन्वेंटरी में दस मैगी की पैकेट्स ऐड करो वन फिफ्टी प्राइस पे",
+    "इन्वेंटरी में दस मैगी के पैकेट ऐड करो डेढ़ सौ के प्राइस पे",
+])
+def test_packet_units_and_spoken_150_price_are_preserved(text):
+    result = parse(text)
+    assert result.intent == IntentType.RESTOCK_INVENTORY
+    assert [(item.product, item.quantity, item.unit, item.unit_price) for item in result.items] == [
+        ("maggi", 10, "packet", 150)
+    ]
+
+
+def test_product_first_packet_inventory_phrase_is_parsed():
+    result = parse("मैगी इन्वेंटरी में ऐड करो दस पैकेट्स।")
+    assert result.intent == IntentType.RESTOCK_INVENTORY
+    assert [(item.product, item.quantity, item.unit) for item in result.items] == [("maggi", 10, "packet")]
+
+
 def test_devanagari_transcript_is_normalized_for_offline_parsing():
     result = parse("२ किलो चावल डाल दो")
     assert result.intent == IntentType.ADD_TO_CART

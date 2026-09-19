@@ -19,7 +19,7 @@ UNIT_ALIASES = {
     "kilo": "kg", "kg": "kg", "kilogram": "kg",
     "litre": "litre", "liter": "litre", "l": "litre",
     "gram": "g", "g": "g",
-    "piece": "piece", "pcs": "piece", "packet": "packet",
+    "piece": "piece", "pcs": "piece", "packet": "packet", "packets": "packet",
 }
 
 PRODUCT_ALIASES = {
@@ -42,16 +42,16 @@ DEVANAGARI_REPLACEMENTS = {
     "आज": "today", "महीने": "month", "मंथ": "month",
     "डाल दो": "daal do", "कर दो": "kar do",
     "चावल": "chawal", "आटा": "aata", "मैदा": "maida", "चीनी": "chini", "तेल": "tel", "फ्लावर": "flour", "गेहूं": "wheat", "ऐड": "add", "प्राइ": "price", "प्राइस": "price", "रुपये": "price",
-    "दूध": "milk", "मैगी": "maggi", "पैकेट": "packet", "लीटर": "liter", "लिटर": "liter",
+    "दूध": "milk", "मैगी": "maggi", "पैकेट्स": "packets", "पैकेट": "packet", "लीटर": "liter", "लिटर": "liter",
     "नमक": "namak", "दाल": "dal", "कार्ट": "cart", "कार्ड": "cart", "किलो": "kilo",
     "किलोग्राम": "kilogram", "केजी": "kg", "दिखाओ": "dikhao", "दिखा": "dikha",
     "जोड़ो": "add", "जोड़": "add", "डालो": "dalo", "इसको": "isko",
     "इसे": "ise", "हटाओ": "hatao", "बिल": "bill", "बनाओ": "banao", "बना": "bana", "बनाऊं": "banao", "बनाऊँ": "banao", "डन": "done", "ऑर्डर": "order", "लाओ": "lao",
     "शुरू": "shuru", "करो": "karo", "इन्वेंटरी": "inventory",
     "डेढ़": "1.5", "डेढ़": "1.5", "ढ़ाई": "2.5", "ढाई": "2.5",
-    "पाँच": "paanch", "पांच": "paanch", "चार": "chaar", "तीन": "teen",
+    "वन फिफ्टी": "150", "पाँच": "paanch", "पांच": "paanch", "चार": "chaar", "तीन": "teen",
     "दो": "do", "एक": "ek", "छह": "che", "सात": "saat", "आठ": "aath",
-    "नौ": "nau", "दस": "das", "सौ": "sau", "के": "ke", "फाइव": "paanch", "फोर": "chaar",
+    "नौ": "nau", "दस": "das", "सौ": "sau", "के": "ke", "की": "ki", "का": "ka", "फिफ्टी": "50", "फाइव": "paanch", "फोर": "chaar",
     "थ्री": "teen", "टू": "do", "वन": "ek", "सिक्स": "che",
     "सेवन": "saat", "एट": "aath", "नाइन": "nau", "टेन": "das",
 }
@@ -99,13 +99,24 @@ ITEM_PATTERN = re.compile(
 
 # Handles speech-recognition word order such as "flour add 10 kg inventory mein".
 ITEM_AFTER_PRODUCT_PATTERN = re.compile(
-    r"\b(?P<product>[a-zA-Z]+)\b(?:\s+[a-zA-Z]+){0,4}?\s+"
+    r"\b(?P<product>[a-zA-Z]+)\b(?:\s+\S+){0,4}?\s+"
     r"(?P<qty>\d+(?:\.\d+)?|" + "|".join(HINDI_NUMERALS.keys()) + r")\s*"
-    r"(?P<unit>kilogram|kilo|kg|litre|liter|l|gram|g|piece|pcs|packet)\b",
+    r"(?P<unit>kilogram|kilo|kg|litre|liter|l|gram|g|piece|pcs|packet|packets)\b",
+    re.IGNORECASE,
+)
+# Speech recognition often places the product before its unit: "10 maggi ke
+# packets".  Extract this before the generic quantity-product form so it is
+# not incorrectly assigned the default kilogram unit.
+ITEM_WITH_TRAILING_UNIT_PATTERN = re.compile(
+    r"\b(?P<qty>\d+(?:\.\d+)?|" + "|".join(HINDI_NUMERALS.keys()) + r")\s*"
+    r"(?P<product>[a-zA-Z]+)\s*(?:ke|ki|ka)?\s*"
+    r"(?P<unit>kilogram|kilo|kg|litre|liter|l|gram|g|piece|pcs|packet|packets)\b",
     re.IGNORECASE,
 )
 PRICE_PATTERN = re.compile(
-    r"\b(?P<price>\d+(?:\.\d+)?|(?:ek|do|teen|char|chaar|paanch|das)\s+sau|"
+    r"\b(?P<price>(?:\d+(?:\.\d+)?|"
+    + "|".join(HINDI_NUMERALS.keys())
+    + r")\s+sau|\d+(?:\.\d+)?|"
     + "|".join(HINDI_NUMERALS.keys()) + r")\s*(?:ke\s+)?price\b",
     re.IGNORECASE,
 )
@@ -129,12 +140,24 @@ def _extract_unit_price(text: str) -> float | None:
         return None
     raw = match.group("price").lower().strip()
     if raw.endswith(" sau"):
-        return float(HINDI_NUMERALS[raw.removesuffix(" sau")] * 100)
+        return _normalize_qty(raw.removesuffix(" sau")) * 100
     return _normalize_qty(raw)
 
 
 def _extract_items(text: str) -> list[ItemMention]:
     items: list[ItemMention] = []
+    for match in ITEM_WITH_TRAILING_UNIT_PATTERN.finditer(text):
+        product_raw = match.group("product").lower()
+        if product_raw not in PRODUCT_ALIASES:
+            continue
+        unit_raw = match.group("unit").lower()
+        items.append(ItemMention(
+            product=PRODUCT_ALIASES[product_raw],
+            quantity=_normalize_qty(match.group("qty")),
+            unit=UNIT_ALIASES[unit_raw],
+        ))
+    if items:
+        return items
     for match in ITEM_PATTERN.finditer(text):
         product_raw = match.group("product").lower()
         if product_raw not in PRODUCT_ALIASES:
