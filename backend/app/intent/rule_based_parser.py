@@ -41,17 +41,17 @@ DEVANAGARI_REPLACEMENTS = {
     "सेल्स": "sales", "बिक्री": "sales", "वीक": "week", "हफ्ते": "week", "हफ़्ते": "week", "सप्ताह": "week",
     "आज": "today", "महीने": "month", "मंथ": "month",
     "डाल दो": "daal do", "कर दो": "kar do",
-    "चावल": "chawal", "आटा": "aata", "मैदा": "maida", "चीनी": "chini", "तेल": "tel",
+    "चावल": "chawal", "आटा": "aata", "मैदा": "maida", "चीनी": "chini", "तेल": "tel", "फ्लावर": "flour", "गेहूं": "wheat", "ऐड": "add", "प्राइ": "price", "प्राइस": "price", "रुपये": "price",
     "दूध": "milk", "मैगी": "maggi", "पैकेट": "packet", "लीटर": "liter", "लिटर": "liter",
     "नमक": "namak", "दाल": "dal", "कार्ट": "cart", "कार्ड": "cart", "किलो": "kilo",
     "किलोग्राम": "kilogram", "केजी": "kg", "दिखाओ": "dikhao", "दिखा": "dikha",
     "जोड़ो": "add", "जोड़": "add", "डालो": "dalo", "इसको": "isko",
     "इसे": "ise", "हटाओ": "hatao", "बिल": "bill", "बनाओ": "banao", "बना": "bana", "बनाऊं": "banao", "बनाऊँ": "banao", "डन": "done", "ऑर्डर": "order",
-    "शुरू": "shuru", "करो": "karo",
+    "शुरू": "shuru", "करो": "karo", "इन्वेंटरी": "inventory",
     "डेढ़": "1.5", "डेढ़": "1.5", "ढ़ाई": "2.5", "ढाई": "2.5",
     "पाँच": "paanch", "पांच": "paanch", "चार": "chaar", "तीन": "teen",
     "दो": "do", "एक": "ek", "छह": "che", "सात": "saat", "आठ": "aath",
-    "नौ": "nau", "दस": "das", "फाइव": "paanch", "फोर": "chaar",
+    "नौ": "nau", "दस": "das", "सौ": "sau", "के": "ke", "फाइव": "paanch", "फोर": "chaar",
     "थ्री": "teen", "टू": "do", "वन": "ek", "सिक्स": "che",
     "सेवन": "saat", "एट": "aath", "नाइन": "nau", "टेन": "das",
 }
@@ -66,6 +66,7 @@ def _normalize_text(text: str) -> str:
 
 # Ordered so more specific / higher-priority intents are checked first.
 INTENT_PATTERNS: list[tuple[IntentType, list[str]]] = [
+    (IntentType.RESTOCK_INVENTORY, [r"\binventory\b.*\b(add|daal do|dalo|kar do|karo)\b", r"\b(add|daal do|dalo|kar do|karo)\b.*\binventory\b"]),
     (IntentType.CREATE_ORDER, [r"\border\b.*\b(bhej|place|confirm|kar|karo|banao|bana|create|generate|shuru)\b", r"\bcheckout\b", r"\bbill\b.*\b(banao|bana|create|generate|shuru)\b", r"\b(banao|bana|create|generate)\b.*\bbill\b"]),
     (IntentType.REPEAT_ORDER, [r"\b(last|pichhla|pehla)\b.*\border\b.*\brepeat\b", r"\brepeat.*order\b"]),
     (IntentType.CANCEL_ORDER, [r"\border\b.*\bcancel\b", r"\bcancel\b.*\border\b"]),
@@ -94,12 +95,35 @@ ITEM_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Handles speech-recognition word order such as "flour add 10 kg inventory mein".
+ITEM_AFTER_PRODUCT_PATTERN = re.compile(
+    r"\b(?P<product>[a-zA-Z]+)\b(?:\s+[a-zA-Z]+){0,4}?\s+"
+    r"(?P<qty>\d+(?:\.\d+)?|" + "|".join(HINDI_NUMERALS.keys()) + r")\s*"
+    r"(?P<unit>kilogram|kilo|kg|litre|liter|l|gram|g|piece|pcs|packet)\b",
+    re.IGNORECASE,
+)
+PRICE_PATTERN = re.compile(
+    r"\b(?P<price>\d+(?:\.\d+)?|(?:ek|do|teen|char|chaar|paanch|das)\s+sau|"
+    + "|".join(HINDI_NUMERALS.keys()) + r")\s*(?:ke\s+)?price\b",
+    re.IGNORECASE,
+)
+
 
 def _normalize_qty(raw: str) -> float:
     raw_lower = raw.lower()
     if raw_lower in HINDI_NUMERALS:
         return float(HINDI_NUMERALS[raw_lower])
     return float(raw)
+
+
+def _extract_unit_price(text: str) -> float | None:
+    match = PRICE_PATTERN.search(text)
+    if not match:
+        return None
+    raw = match.group("price").lower().strip()
+    if raw.endswith(" sau"):
+        return float(HINDI_NUMERALS[raw.removesuffix(" sau")] * 100)
+    return _normalize_qty(raw)
 
 
 def _extract_items(text: str) -> list[ItemMention]:
@@ -116,6 +140,18 @@ def _extract_items(text: str) -> list[ItemMention]:
                 unit=UNIT_ALIASES.get(unit_raw, unit_raw),
             )
         )
+    if items:
+        return items
+    for match in ITEM_AFTER_PRODUCT_PATTERN.finditer(text):
+        product_raw = match.group("product").lower()
+        if product_raw not in PRODUCT_ALIASES:
+            continue
+        unit_raw = match.group("unit").lower()
+        items.append(ItemMention(
+            product=PRODUCT_ALIASES[product_raw],
+            quantity=_normalize_qty(match.group("qty")),
+            unit=UNIT_ALIASES[unit_raw],
+        ))
     return items
 
 
@@ -158,6 +194,10 @@ def parse(text: str) -> ParsedIntent:
             break
 
     items = _extract_items(lowered)
+    unit_price = _extract_unit_price(lowered)
+    if unit_price is not None:
+        for item in items:
+            item.unit_price = unit_price
 
     if detected_intent == IntentType.REMOVE_FROM_CART and not items:
         items = _extract_named_products(lowered)
@@ -170,6 +210,9 @@ def parse(text: str) -> ParsedIntent:
     # Fallback: if we found item mentions but no verb matched, assume ADD_TO_CART
     if detected_intent == IntentType.UNKNOWN and items:
         detected_intent = IntentType.ADD_TO_CART
+
+    if items and unit_price is not None:
+        detected_intent = IntentType.RESTOCK_INVENTORY
 
     # A bare "cart" is a common short request to view its current contents.
     if detected_intent == IntentType.UNKNOWN and re.search(r"\bcart\b", lowered):

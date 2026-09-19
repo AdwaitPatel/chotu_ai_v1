@@ -36,6 +36,22 @@ def test_add_to_cart_extracts_product_and_quantity():
     assert result.items[0].unit == "kg"
 
 
+def test_inventory_restock_is_not_routed_to_cart():
+    for text in ["10 kilo aata inventory mein add karo", "दस किलो आटा ऐड करो इन्वेंटरी में", "फ्लावर ऐड करो 10 किलो इन्वेंटरी में"]:
+        result = parse(text)
+        assert result.intent == IntentType.RESTOCK_INVENTORY
+        assert result.items[0].product == "flour"
+        assert result.items[0].quantity == 10
+
+
+def test_spoken_selling_price_turns_stock_entry_into_inventory_restock():
+    result = parse("वन केजी फ्लावर ऐड कर दो दो सौ के प्राइ")
+    assert result.intent == IntentType.RESTOCK_INVENTORY
+    assert result.items[0].product == "flour"
+    assert result.items[0].quantity == 1
+    assert result.items[0].unit_price == 200
+
+
 def test_devanagari_transcript_is_normalized_for_offline_parsing():
     result = parse("२ किलो चावल डाल दो")
     assert result.intent == IntentType.ADD_TO_CART

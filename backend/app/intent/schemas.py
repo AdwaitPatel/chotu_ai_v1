@@ -24,6 +24,7 @@ class IntentType(str, enum.Enum):
     GST_REPORT = "GST_REPORT"
     GROWTH_INSIGHTS = "GROWTH_INSIGHTS"
     FORECAST_DEMAND = "FORECAST_DEMAND"
+    RESTOCK_INVENTORY = "RESTOCK_INVENTORY"
     UNKNOWN = "UNKNOWN"
 
 
@@ -31,6 +32,7 @@ class ItemMention(BaseModel):
     product: str
     quantity: float | None = None
     unit: str | None = None
+    unit_price: float | None = Field(default=None, gt=0)
     # True when the merchant referred to the item pronomially
     # ("isko", "ise", "iska") rather than by name — resolved via session memory.
     is_reference: bool = False

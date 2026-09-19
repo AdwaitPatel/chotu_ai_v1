@@ -16,7 +16,9 @@ from app.intent.schemas import IntentType, ItemMention, ParsedIntent
 SYSTEM_PROMPT = """You are the Intent Engine for a kirana (small retail) store
 assistant. Merchants speak in Hindi, Hinglish, or English. Classify each
 utterance into exactly one intent and extract any product/quantity/unit
-mentions. Always call the `extract_intent` function — never reply in plain text.
+mentions. "inventory mein add karo" means RESTOCK_INVENTORY: increase the
+merchant's own stock, never a customer cart. Always call the `extract_intent`
+function — never reply in plain text.
 """
 
 EXTRACT_INTENT_FUNCTION = {
@@ -37,6 +39,7 @@ EXTRACT_INTENT_FUNCTION = {
                         "product": {"type": "string"},
                         "quantity": {"type": "number"},
                         "unit": {"type": "string"},
+                        "unit_price": {"type": "number", "description": "selling price per stated unit, if spoken"},
                         "is_reference": {
                             "type": "boolean",
                             "description": "true if the merchant used a pronoun like 'isko'/'ise' instead of naming the product",
@@ -146,6 +149,7 @@ class LLMIntentParser:
                 product=item.get("product", ""),
                 quantity=item.get("quantity"),
                 unit=item.get("unit"),
+                unit_price=item.get("unit_price"),
                 is_reference=item.get("is_reference", False),
             )
             for item in args.get("items", [])

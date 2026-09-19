@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.cart_agent import AgentResponse, CartAgent
 from app.agents.order_agent import OrderAgent
+from app.agents.inventory_agent import InventoryAgent
 from app.core.redis_client import get_session_memory
 from app.intent.schemas import IntentType, ParsedIntent
 from app.services.cart_service import CartService
@@ -33,6 +34,7 @@ class AgentRouter:
         self.session = session
         self.cart_agent = CartAgent(CartService(session))
         self.order_agent = OrderAgent(OrderService(session))
+        self.inventory_agent = InventoryAgent(session)
 
     async def route(self, customer_id: int, intent: ParsedIntent) -> AgentResponse:
         session_state = await get_session_memory(customer_id).get()
@@ -48,6 +50,9 @@ class AgentRouter:
 
         if intent.intent == IntentType.CREATE_ORDER:
             return await self.order_agent.start(customer_id, intent)
+
+        if intent.intent == IntentType.RESTOCK_INVENTORY:
+            return await self.inventory_agent.restock(intent)
 
         if intent.intent in CartAgent.SUPPORTED_INTENTS:
             return await self.cart_agent.handle(customer_id, intent)
