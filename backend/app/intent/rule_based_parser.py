@@ -38,7 +38,7 @@ PRODUCT_ALIASES = {
 # Normalize the supported vocabulary so either transcript form works offline.
 DEVANAGARI_REPLACEMENTS = {
     "बिजनेस": "business", "बिज़नेस": "business", "बिज़नेस": "business", "एनालिसिस": "analysis", "एनालाइज": "analysis", "विश्लेषण": "analysis",
-    "सेल्स": "sales", "शेड्स": "sales", "बिक्री": "sales", "इनक्रीस": "increase", "बढ़ाऊँ": "badhao", "बढ़ाना": "badha", "बढ़ाना": "badha", "वीक": "week", "हफ्ते": "week", "हफ़्ते": "week", "सप्ताह": "week",
+    "सेल टाउन": "sales", "सेल्स": "sales", "शेड्स": "sales", "बिक्री": "sales", "इनक्रीस": "increase", "ग्रो": "grow", "बढ़ाऊँ": "badhao", "बढ़ाना": "badha", "बढ़ाना": "badha", "वीक": "week", "हफ्ते": "week", "हफ़्ते": "week", "सप्ताह": "week",
     "आज": "today", "महीने": "month", "मंथ": "month",
     "डाल दो": "daal do", "कर दो": "kar do",
     "चावल": "chawal", "आटा": "aata", "मैदा": "maida", "चीनी": "chini", "तेल": "tel", "फ्लावर": "flour", "गेहूं": "wheat", "ऐड": "add", "प्राइ": "price", "प्राइस": "price", "रुपये": "price",
