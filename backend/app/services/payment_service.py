@@ -2,6 +2,7 @@
 import json
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 from sqlalchemy import func, select
@@ -103,6 +104,34 @@ class PaymentService:
             order.status = OrderStatus.PAID
             await self.session.flush()
         return {**result, 'paytm_order_id': order.invoice_number}
+
+    async def upi_payment_request(self, order_id: int) -> dict[str, str]:
+        """Create a scanner-friendly UPI deep link when gateway verification is unavailable."""
+        order = await self.order(order_id)
+        settings = get_settings()
+        params = {
+            "pa": settings.UPI_VPA,
+            "pn": settings.UPI_PAYEE_NAME,
+            "am": f"{order.total_amount:.2f}",
+            "cu": "INR",
+            "tn": f"Bill {order.invoice_number}",
+        }
+        return {
+            "upi_uri": f"upi://pay?{urlencode(params)}",
+            "upi_vpa": settings.UPI_VPA,
+            "amount": params["am"],
+            "invoice_number": order.invoice_number,
+        }
+
+    async def confirm_upi_payment(self, order_id: int) -> Payment:
+        """Merchant confirmation for the QR fallback; gateway verification is not implied."""
+        order = await self.order(order_id)
+        payment = await self.record(order_id, "online")
+        payment.provider = "upi"
+        payment.status = "paid"
+        order.status = OrderStatus.PAID
+        await self.session.flush()
+        return payment
 
     async def find_customers(self, name: str, phone: str | None = None) -> list[Customer]:
         query = select(Customer).where(Customer.merchant_id == self.merchant_id)

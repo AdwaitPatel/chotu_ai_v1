@@ -34,6 +34,16 @@ class PaymentAgent:
             await memory.update(pending_payment=None, last_order_id=order_id)
             return AgentResponse(message, {'order_id': order_id, **data}, intent='PAYMENT_RECORDED')
 
+        async def offer_upi_qr() -> AgentResponse:
+            qr = await service.upi_payment_request(order_id)
+            return await prompt(
+                f"₹{qr['amount']} ka UPI QR ready hai. QR scan karke payment kar dijiye. "
+                "Payment ho jaye to haan boliye; cash ya udhar karna ho to woh boliye.",
+                stage='upi_qr',
+                payment_method='upi',
+                **qr,
+            )
+
         try:
             if re.search(r'\b(later|skip)\b|बाद में', lower):
                 await memory.update(pending_payment=None)
@@ -48,8 +58,14 @@ class PaymentAgent:
                     result = await service.verify_online(order_id)
                     if result['verified']:
                         return await finish('Paytm transaction verify ho gaya. Bill paid hai.', payment_method='online', **result)
+                    if result.get('status') == 'not_configured':
+                        return await offer_upi_qr()
                     await self.session.commit()
-                    return await prompt(result['message'], stage='online_check', **result)
+                    return await prompt(
+                        result['message'],
+                        stage='online_check',
+                        **{key: value for key, value in result.items() if key != 'message'},
+                    )
                 if re.search(r'\b(udhar|credit|udhaar)\b|उधार', lower):
                     return await prompt('Udhar kiske naam likhna hai? Customer ka naam boliye; database mein check karunga.', stage='credit_name')
                 return await prompt('Payment kaise hoga: cash, online ya udhar?')
@@ -61,11 +77,36 @@ class PaymentAgent:
                     return await finish(f'₹{payment.amount:.2f} cash received. Bill paid hai.', payment_method='cash', amount=str(payment.amount))
                 return await prompt('Cash mila hai to haan, nahi mila to nahi boliye.')
             if stage == 'online_check':
+                if re.search(r'\b(cash|nakad)\b|कैश|नकद', lower):
+                    return await prompt('Theek hai, cash mil gaya? Haan bolne par bill paid mark karunga.', stage='cash_confirm')
+                if re.search(r'\b(udhar|credit|udhaar)\b|उधार', lower):
+                    return await prompt('Theek hai, udhar kiske naam likhna hai? Customer ka naam boliye.', stage='credit_name')
                 result = await service.verify_online(order_id)
                 if result['verified']:
                     return await finish('Paytm payment verified. Bill paid hai.', payment_method='online', **result)
+                if result.get('status') == 'not_configured':
+                    return await offer_upi_qr()
                 await self.session.commit()
-                return await prompt(result['message'], **result)
+                return await prompt(
+                    result['message'],
+                    **{key: value for key, value in result.items() if key != 'message'},
+                )
+            if stage == 'upi_qr':
+                if re.search(r'\b(cash|nakad)\b|कैश|नकद', lower):
+                    return await prompt('Theek hai, cash mil gaya? Haan bolne par bill paid mark karunga.', stage='cash_confirm')
+                if re.search(r'\b(udhar|credit|udhaar)\b|उधार', lower):
+                    return await prompt('Theek hai, udhar kiske naam likhna hai? Customer ka naam boliye.', stage='credit_name')
+                if OrderAgent._is_affirmative(text) or re.search(r'\b(?:paid|payment\s+(?:ho\s+)?gaya|done)\b', lower):
+                    payment = await service.confirm_upi_payment(order_id)
+                    return await finish(
+                        f'₹{payment.amount:.2f} UPI payment merchant confirmation par recorded hai. Bill paid hai.',
+                        payment_method='upi',
+                        amount=str(payment.amount),
+                    )
+                return await prompt(
+                    'QR scan karke payment kar dijiye. Payment complete ho to haan boliye; cash ya udhar bhi choose kar sakte hain.',
+                    stage='upi_qr',
+                )
             if stage in {'credit_name', 'credit_phone'}:
                 name = state.get('name', '')
                 phone = None

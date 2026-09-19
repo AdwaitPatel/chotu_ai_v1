@@ -52,11 +52,26 @@ def test_spoken_selling_price_turns_stock_entry_into_inventory_restock():
     assert result.items[0].unit_price == 200
 
 
+@pytest.mark.parametrize("text", [
+    "5 kilo maida ₹20 ke hisaab se add kar do",
+    "20 kilo maida 20 रुपये ke hisaab se add kar do",
+])
+def test_rupee_price_creates_an_inventory_restock_intent(text):
+    result = parse(text)
+    assert result.intent == IntentType.RESTOCK_INVENTORY
+    assert result.items[0].product == "maida"
+    assert result.items[0].unit_price == 20
+
+
 def test_devanagari_transcript_is_normalized_for_offline_parsing():
     result = parse("२ किलो चावल डाल दो")
     assert result.intent == IntentType.ADD_TO_CART
     assert result.items[0].product == "rice"
     assert result.items[0].quantity == 2
+
+
+def test_hindi_business_growth_idea_is_routed_to_insights():
+    assert parse("अब बिज़नेस ग्रो करने के लिए कुछ आइडिया दो।").intent == IntentType.GROWTH_INSIGHTS
 
 
 @pytest.mark.parametrize(

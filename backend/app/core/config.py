@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     PAYTM_MID: str | None = None
     PAYTM_MERCHANT_KEY: str | None = None
     PAYTM_PRODUCTION: bool = False
+    # Used only for the no-gateway demo fallback.  Set this to the merchant's
+    # real UPI VPA before using the fallback with real customers.
+    UPI_VPA: str = "merchant@upi"
+    UPI_PAYEE_NAME: str = "Merchant Store"
 
     @field_validator("DEBUG", mode="before")
     @classmethod

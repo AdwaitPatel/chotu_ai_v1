@@ -45,6 +45,18 @@ class AgentRouter:
             return AgentResponse(report['summary'] + ' ' + ' '.join(report['insights'] + report['recommendations']), report, intent=intent.intent.value)
         if session_state.get('pending_payment'):
             return await PaymentAgent(self.session).handle(customer_id, intent, session_state['pending_payment'])
+
+        # A draft must not trap the merchant in its confirmation loop.  Explicit
+        # commands start a fresh flow (or cancel the old one) instead of being
+        # interpreted as the next answer to a customer-name question.
+        if session_state.get("pending_order") and intent.intent == IntentType.CANCEL_ORDER:
+            await get_session_memory(customer_id).update(pending_order=None)
+            return AgentResponse("Theek hai, adhura bill cancel kar diya.", {}, intent="ORDER_DRAFT")
+        if session_state.get("pending_order") and intent.intent == IntentType.RESTOCK_INVENTORY:
+            await get_session_memory(customer_id).update(pending_order=None)
+            return await self.inventory_agent.restock(intent)
+        if session_state.get("pending_order") and intent.intent == IntentType.CREATE_ORDER:
+            return await self.order_agent.start(customer_id, intent)
         if session_state.get("pending_order"):
             return await self.order_agent.continue_draft(customer_id, intent)
 

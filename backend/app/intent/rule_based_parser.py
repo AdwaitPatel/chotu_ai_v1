@@ -37,7 +37,7 @@ PRODUCT_ALIASES = {
 # rules below use the Romanized wording common in merchant conversations.
 # Normalize the supported vocabulary so either transcript form works offline.
 DEVANAGARI_REPLACEMENTS = {
-    "बिजनेस": "business", "एनालिसिस": "analysis", "एनालाइज": "analysis", "विश्लेषण": "analysis",
+    "बिजनेस": "business", "बिज़नेस": "business", "बिज़नेस": "business", "एनालिसिस": "analysis", "एनालाइज": "analysis", "विश्लेषण": "analysis",
     "सेल्स": "sales", "बिक्री": "sales", "वीक": "week", "हफ्ते": "week", "हफ़्ते": "week", "सप्ताह": "week",
     "आज": "today", "महीने": "month", "मंथ": "month",
     "डाल दो": "daal do", "कर दो": "kar do",
@@ -46,7 +46,7 @@ DEVANAGARI_REPLACEMENTS = {
     "नमक": "namak", "दाल": "dal", "कार्ट": "cart", "कार्ड": "cart", "किलो": "kilo",
     "किलोग्राम": "kilogram", "केजी": "kg", "दिखाओ": "dikhao", "दिखा": "dikha",
     "जोड़ो": "add", "जोड़": "add", "डालो": "dalo", "इसको": "isko",
-    "इसे": "ise", "हटाओ": "hatao", "बिल": "bill", "बनाओ": "banao", "बना": "bana", "बनाऊं": "banao", "बनाऊँ": "banao", "डन": "done", "ऑर्डर": "order",
+    "इसे": "ise", "हटाओ": "hatao", "बिल": "bill", "बनाओ": "banao", "बना": "bana", "बनाऊं": "banao", "बनाऊँ": "banao", "डन": "done", "ऑर्डर": "order", "लाओ": "lao",
     "शुरू": "shuru", "करो": "karo", "इन्वेंटरी": "inventory",
     "डेढ़": "1.5", "डेढ़": "1.5", "ढ़ाई": "2.5", "ढाई": "2.5",
     "पाँच": "paanch", "पांच": "paanch", "चार": "chaar", "तीन": "teen",
@@ -59,7 +59,9 @@ DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789"
 
 
 def _normalize_text(text: str) -> str:
-    normalized = text.lower().translate(DEVANAGARI_DIGITS)
+    # Treat the spoken/written rupee symbol as a price marker as well.  Browser
+    # STT may return either "₹20" or "20 रुपये" for the same utterance.
+    normalized = text.lower().replace("₹", " price ").translate(DEVANAGARI_DIGITS)
     for source, replacement in sorted(DEVANAGARI_REPLACEMENTS.items(), key=lambda item: len(item[0]), reverse=True):
         normalized = normalized.replace(source, replacement)
     return re.sub(r"\bcard\b", "cart", normalized)
@@ -67,7 +69,7 @@ def _normalize_text(text: str) -> str:
 # Ordered so more specific / higher-priority intents are checked first.
 INTENT_PATTERNS: list[tuple[IntentType, list[str]]] = [
     (IntentType.RESTOCK_INVENTORY, [r"\binventory\b.*\b(add|daal do|dalo|kar do|karo)\b", r"\b(add|daal do|dalo|kar do|karo)\b.*\binventory\b"]),
-    (IntentType.CREATE_ORDER, [r"\border\b.*\b(bhej|place|confirm|kar|karo|banao|bana|create|generate|shuru)\b", r"\bcheckout\b", r"\bbill\b.*\b(banao|bana|create|generate|shuru)\b", r"\b(banao|bana|create|generate)\b.*\bbill\b"]),
+    (IntentType.CREATE_ORDER, [r"\border\b.*\b(lao|bhej|place|confirm|kar|karo|banao|bana|create|generate|shuru)\b", r"\bcheckout\b", r"\bbill\b.*\b(banao|bana|create|generate|shuru)\b", r"\b(banao|bana|create|generate)\b.*\bbill\b"]),
     (IntentType.REPEAT_ORDER, [r"\b(last|pichhla|pehla)\b.*\border\b.*\brepeat\b", r"\brepeat.*order\b"]),
     (IntentType.CANCEL_ORDER, [r"\border\b.*\bcancel\b", r"\bcancel\b.*\border\b"]),
     (IntentType.GST_REPORT, [r"\bgst\b"]),
@@ -107,6 +109,11 @@ PRICE_PATTERN = re.compile(
     + "|".join(HINDI_NUMERALS.keys()) + r")\s*(?:ke\s+)?price\b",
     re.IGNORECASE,
 )
+PRICE_PREFIX_PATTERN = re.compile(
+    r"\bprice\s*(?P<price>\d+(?:\.\d+)?|(?:ek|do|teen|char|chaar|paanch|das)\s+sau|"
+    + "|".join(HINDI_NUMERALS.keys()) + r")\b",
+    re.IGNORECASE,
+)
 
 
 def _normalize_qty(raw: str) -> float:
@@ -117,7 +124,7 @@ def _normalize_qty(raw: str) -> float:
 
 
 def _extract_unit_price(text: str) -> float | None:
-    match = PRICE_PATTERN.search(text)
+    match = PRICE_PATTERN.search(text) or PRICE_PREFIX_PATTERN.search(text)
     if not match:
         return None
     raw = match.group("price").lower().strip()

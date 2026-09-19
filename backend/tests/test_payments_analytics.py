@@ -25,6 +25,53 @@ class ReportParsingTests(unittest.TestCase):
 
 
 class PaymentConversationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_online_payment_pending_response_does_not_duplicate_message(self):
+        memory = SimpleNamespace(update=AsyncMock())
+        session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
+        service = SimpleNamespace(
+            record=AsyncMock(),
+            verify_online=AsyncMock(return_value={
+                'verified': False,
+                'status': 'PENDING',
+                'message': 'Payment pending hai.',
+                'paytm_order_id': 'INV-1',
+            }),
+        )
+        with patch('app.agents.payment_agent.current_merchant', AsyncMock(return_value=SimpleNamespace(id=1))), patch('app.agents.payment_agent.get_session_memory', return_value=memory), patch('app.agents.payment_agent.PaymentService', return_value=service):
+            state = {'order_id': 4, 'stage': 'method'}
+            reply = await PaymentAgent(session).handle(1, parse('online'), state)
+        self.assertEqual(reply.intent, 'PAYMENT_PENDING')
+        self.assertEqual(state['stage'], 'online_check')
+        self.assertNotIn('message', state)
+
+    async def test_unconfigured_paytm_offers_upi_qr_fallback(self):
+        memory = SimpleNamespace(update=AsyncMock())
+        session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
+        service = SimpleNamespace(
+            record=AsyncMock(),
+            verify_online=AsyncMock(return_value={'verified': False, 'status': 'not_configured'}),
+            upi_payment_request=AsyncMock(return_value={
+                'upi_uri': 'upi://pay?pa=merchant%40upi&am=126.00',
+                'upi_vpa': 'merchant@upi', 'amount': '126.00', 'invoice_number': 'INV-1',
+            }),
+        )
+        with patch('app.agents.payment_agent.current_merchant', AsyncMock(return_value=SimpleNamespace(id=1))), patch('app.agents.payment_agent.get_session_memory', return_value=memory), patch('app.agents.payment_agent.PaymentService', return_value=service):
+            state = {'order_id': 4, 'stage': 'method'}
+            reply = await PaymentAgent(session).handle(1, parse('online'), state)
+        self.assertEqual(reply.intent, 'PAYMENT_PENDING')
+        self.assertEqual(state['stage'], 'upi_qr')
+        self.assertEqual(reply.data['upi_uri'], 'upi://pay?pa=merchant%40upi&am=126.00')
+
+    async def test_upi_qr_allows_switching_to_cash(self):
+        memory = SimpleNamespace(update=AsyncMock())
+        session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())
+        service = SimpleNamespace()
+        with patch('app.agents.payment_agent.current_merchant', AsyncMock(return_value=SimpleNamespace(id=1))), patch('app.agents.payment_agent.get_session_memory', return_value=memory), patch('app.agents.payment_agent.PaymentService', return_value=service):
+            state = {'order_id': 4, 'stage': 'upi_qr', 'upi_uri': 'upi://pay?pa=merchant%40upi&am=126.00'}
+            reply = await PaymentAgent(session).handle(1, parse('कैश कर ले कैश'), state)
+        self.assertEqual(reply.intent, 'PAYMENT_PENDING')
+        self.assertEqual(state['stage'], 'cash_confirm')
+
     async def test_cash_requires_confirmation(self):
         memory = SimpleNamespace(update=AsyncMock())
         session = SimpleNamespace(commit=AsyncMock(), rollback=AsyncMock())

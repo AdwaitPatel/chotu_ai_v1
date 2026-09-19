@@ -3,6 +3,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from app.agents.order_agent import OrderAgent
 from app.intent.rule_based_parser import parse
+from app.intent.schemas import IntentType, ParsedIntent
+from app.services.order_service import OrderProductNotFoundError
 
 
 class OrderPhraseTests(unittest.TestCase):
@@ -23,6 +25,28 @@ class OrderPhraseTests(unittest.TestCase):
 
 
 class ConfirmationFlowTests(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_product_returns_to_item_stage(self):
+        memory = SimpleNamespace(
+            get=AsyncMock(return_value={
+                'pending_order': {
+                    'stage': 'confirm_customer', 'customer_name': 'Rahul',
+                    'items': [{'product': 'maida', 'quantity': 10, 'unit': 'kg'}],
+                }
+            }),
+            update=AsyncMock(),
+        )
+        service = SimpleNamespace(
+            create_invoice=AsyncMock(side_effect=OrderProductNotFoundError('maida')),
+            session=SimpleNamespace(commit=AsyncMock()),
+        )
+        with patch('app.agents.order_agent.get_session_memory', return_value=memory):
+            reply = await OrderAgent(service).continue_draft(
+                1, ParsedIntent(intent=IntentType.UNKNOWN, raw_text='haan')
+            )
+        self.assertEqual(reply.data['stage'], 'items')
+        self.assertEqual(reply.data['items'], [])
+        memory.update.assert_awaited_once_with(pending_order={'stage': 'items', 'items': []})
+
     async def test_same_name_and_reference_confirm_without_asking_again(self):
         for text in ['हाँ, इसी के नाम से बनाना है।', 'हाँ राहुल के नाम से बनाना है']:
             memory = SimpleNamespace(get=AsyncMock(return_value={'pending_order': {'stage': 'confirm_customer', 'customer_name': 'राहुल', 'items': [{'product': 'sugar', 'quantity': 1}]}}), update=AsyncMock())

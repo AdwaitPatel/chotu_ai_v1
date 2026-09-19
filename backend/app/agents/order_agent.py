@@ -122,7 +122,22 @@ class OrderAgent:
                 # Persist before clearing the recoverable conversational draft.
                 await self.order_service.session.commit()
             except OrderProductNotFoundError as error:
-                return AgentResponse(f"{error} catalog mein nahi mila. Bill cancel nahi hua; item list dobara boliye.", {}, False, "ORDER_DRAFT")
+                # Do not leave the session waiting for another "haan" after a
+                # failed confirmation.  Remove the unavailable product and go
+                # back to item entry so the merchant can immediately replace it.
+                missing_product = str(error).casefold()
+                remaining_items = [
+                    item for item in items
+                    if str(item.get("product", "")).casefold() != missing_product
+                ]
+                await memory.update(pending_order={"stage": "items", "items": remaining_items})
+                return AgentResponse(
+                    f"{error} catalog mein nahi mila, isliye use bill se hata diya. "
+                    "Badle ka item aur quantity boliye, phir 'done' boliye.",
+                    {"stage": "items", "items": remaining_items, "missing_product": str(error)},
+                    False,
+                    "ORDER_DRAFT",
+                )
             except OrderInsufficientStockError as error:
                 return AgentResponse(str(error), {}, False, "ORDER_DRAFT")
             await memory.update(pending_order=None, last_order_id=invoice.order_id, pending_payment={"order_id": invoice.order_id, "stage": "method"})
