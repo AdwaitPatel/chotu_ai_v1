@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import current_merchant
-from app.domain.models import Customer, Merchant, Order, OrderStatus, Payment, Product
+from app.domain.models import Customer, Merchant, Order, OrderStatus, Product
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -41,9 +41,8 @@ async def dashboard(
         ).order_by(Product.stock.asc()).limit(6)
     )).scalars())
     recent = (await session.execute(
-        select(Order, Customer.name, Payment.method, Payment.status)
+        select(Order, Customer.name)
         .join(Customer, Customer.id == Order.customer_id)
-        .outerjoin(Payment, Payment.order_id == Order.id)
         .where(Order.merchant_id == merchant.id, Order.status != OrderStatus.CANCELLED)
         .order_by(Order.created_at.desc()).limit(10)
     )).all()
@@ -61,9 +60,10 @@ async def dashboard(
         "recent_transactions": [
             {
                 "id": order.id, "invoice_number": order.invoice_number, "payer": name,
-                "method": method or "Pending", "payment_status": payment_status or order.status.value,
+                # Legacy stores may not yet have the payments migration.
+                "method": "Not recorded", "payment_status": order.status.value,
                 "amount": str(order.total_amount), "created_at": order.created_at,
             }
-            for order, name, method, payment_status in recent
+            for order, name in recent
         ],
     }

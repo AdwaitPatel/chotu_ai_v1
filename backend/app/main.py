@@ -31,7 +31,12 @@ app.add_exception_handler(IntegrityError, integrity_error_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    # Vercel creates a unique host for each production/preview deployment.
+    allow_origins=[
+        "http://localhost:5173",
+        "https://chotuai-in6fwjgl0-adwaitpatels-projects.vercel.app",
+    ],
+    allow_origin_regex=r"https://[a-z0-9-]+\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
